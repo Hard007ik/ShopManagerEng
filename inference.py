@@ -311,7 +311,7 @@ TASKS = [
 async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     base_url = os.getenv("ENV_BASE_URL", "https://hard007ik-shopmanagereng.hf.space")
-    # base_url = os.getenv("SPACE_URL", "http://localhost:8000")
+    # base_url = os.getenv("ENV_BASE_URL", "http://localhost:8000")
 
     for task in TASKS:
         await run_episode(client, task["id"], task["env"], base_url)
