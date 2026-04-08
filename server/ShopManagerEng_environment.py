@@ -1,7 +1,11 @@
 import random
 import uuid
 from openenv.core.env_server import Environment
-from ..models import JewelryAction, JewelryObservation, JewelryState, PRODUCT_CATALOG
+
+try:
+    from ..models import JewelryAction, JewelryObservation, JewelryState, PRODUCT_CATALOG
+except ImportError:
+    from models import JewelryAction, JewelryObservation, JewelryState, PRODUCT_CATALOG
 
 
 # ─────────────────────────────────────────────

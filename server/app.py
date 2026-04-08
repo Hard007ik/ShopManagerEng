@@ -1,6 +1,12 @@
 from openenv.core.env_server import create_fastapi_app
-from .ShopManagerEng_environment import JewelryShopEnvironment
-from ..models import JewelryAction, JewelryObservation
+
+try:
+    from .ShopManagerEng_environment import JewelryShopEnvironment
+    from ..models import JewelryAction, JewelryObservation
+except ImportError:
+    from server.ShopManagerEng_environment import JewelryShopEnvironment
+    from models import JewelryAction, JewelryObservation
+
 import uvicorn
 
 app = create_fastapi_app(JewelryShopEnvironment, JewelryAction, JewelryObservation)

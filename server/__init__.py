@@ -6,6 +6,9 @@
 
 """Shopmanagereng environment server components."""
 
-from .ShopManagerEng_environment import JewelryShopEnvironment
+try:
+    from .ShopManagerEng_environment import JewelryShopEnvironment
+except ImportError:
+    from server.ShopManagerEng_environment import JewelryShopEnvironment
 
 __all__ = ["JewelryShopEnvironment"]
