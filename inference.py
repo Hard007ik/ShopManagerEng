@@ -251,7 +251,8 @@ async def main() -> None:
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        env = JewelryShopEnv(base_url="http://localhost:8000")
+        # env = JewelryShopEnv(base_url="http://localhost:8000")
+        env = JewelryShopEnv(base_url="https://hard007ik-shopmanagereng.hf.space")
 
         result = await env.reset()
         obs = result.observation
