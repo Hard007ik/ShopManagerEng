@@ -227,7 +227,7 @@ def get_model_action(client: OpenAI, step: int, obs, last_reward: float, history
         text = (completion.choices[0].message.content or "").strip()
         return get_action_from_text(obs.phase, text)
     except Exception as exc:
-        print(f"[DEBUG] Model request failed: {exc}", flush=True)
+        # print(f"[DEBUG] Model request failed: {exc}", flush=True)
         # Fallback actions
         if obs.phase == "market":
             return JewelryAction(market_action="buy", gold_qty=1.0), "buy 1.0"
@@ -293,7 +293,8 @@ async def run_episode(client: OpenAI, task_name: str, env_name: str, base_url: s
         try:
             await env.close()
         except Exception as e:
-            print(f"[DEBUG] env.close() error: {e}", flush=True)
+            pass
+            # print(f"[DEBUG] env.close() error: {e}", flush=True)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
     return score
@@ -309,8 +310,14 @@ TASKS = [
 
 async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    # base_url = os.getenv("ENV_BASE_URL", "http://localhost:8000")
-    base_url = os.getenv("ENV_BASE_URL", "https://huggingface.co/spaces/hard007ik/ShopManagerEng")
+    # Resolve server URL: evaluator env var → IMAGE_NAME → HF Space → localhost
+    base_url = os.getenv("ENV_BASE_URL")
+    if not base_url and IMAGE_NAME:
+        # Evaluator sets IMAGE_NAME; derive the Space URL
+        base_url = f"https://{IMAGE_NAME.replace('/', '-').replace('_', '-')}.hf.space"
+    if not base_url:
+        base_url = os.getenv("SPACE_URL", "http://localhost:8000")
+    print(f"[CONFIG] base_url={base_url}", flush=True)
 
     for task in TASKS:
         await run_episode(client, task["id"], task["env"], base_url)
