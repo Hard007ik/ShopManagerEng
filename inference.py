@@ -16,8 +16,8 @@ from ShopManagerEng.models import JewelryAction
 
 load_dotenv()
 
-IMAGE_NAME = os.getenv("IMAGE_NAME")
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+# IMAGE_NAME = os.getenv("IMAGE_NAME")
+API_KEY = os.getenv("HF_TOKEN")
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 # MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
@@ -310,13 +310,8 @@ TASKS = [
 
 async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    # Resolve server URL: evaluator env var → IMAGE_NAME → HF Space → localhost
-    base_url = os.getenv("ENV_BASE_URL")
-    if not base_url and IMAGE_NAME:
-        base_url = f"https://{IMAGE_NAME.replace('/', '-').replace('_', '-')}.hf.space"
-    if not base_url:
-        base_url = os.getenv("SPACE_URL", "https://hard007ik-shopmanagereng.hf.space")
-    # print(f"[CONFIG] base_url={base_url}", flush=True)
+    base_url = os.getenv("ENV_BASE_URL", "https://hard007ik-shopmanagereng.hf.space")
+    # base_url = os.getenv("SPACE_URL", "http://localhost:8000")
 
     for task in TASKS:
         await run_episode(client, task["id"], task["env"], base_url)
