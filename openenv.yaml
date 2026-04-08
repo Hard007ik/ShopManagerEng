@@ -5,3 +5,33 @@ runtime: fastapi
 app: server.app:app
 port: 8000
 
+tasks:
+  - id: market_timing
+    name: "Market Price Analyst"
+    description: >
+      Analyze gold price fluctuations across up to 3 market rounds.
+      Decide whether to buy immediately or wait for a price drop.
+      Reserve enough cash for crafting labor ($100-$300).
+    grader:
+      type: reward_threshold
+      threshold: 0.3
+
+  - id: demand_crafter
+    name: "Demand-Based Crafter"
+    description: >
+      Check warehouse demand levels for ring, necklace, and bracelet.
+      Choose the highest-demand product you can afford to craft.
+      Products: ring (1oz + $200), necklace (2oz + $300), bracelet (0.5oz + $100).
+    grader:
+      type: reward_threshold
+      threshold: 0.2
+
+  - id: profit_negotiator
+    name: "Profit Maximizer"
+    description: >
+      Complete the full pipeline: buy gold at a good price, craft the
+      best product based on demand, and negotiate with the customer.
+      Counter-offer to drive up the price before accepting.
+    grader:
+      type: reward_threshold
+      threshold: 0.25
