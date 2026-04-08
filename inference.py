@@ -237,22 +237,21 @@ def get_model_action(client: OpenAI, step: int, obs, last_reward: float, history
             return JewelryAction(message="I accept"), "I accept"
 
 
-# ── MAIN ───────────────────────────────────────
 
-async def main() -> None:
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+# ── SINGLE EPISODE RUNNER ──────────────────────
 
+async def run_episode(client: OpenAI, task_name: str, env_name: str, base_url: str) -> float:
+    """Run a single episode and return the final score."""
     history: List[str] = []
     rewards: List[float] = []
     steps_taken = 0
     score = 0.0
     success = False
 
-    log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
+    log_start(task=task_name, env=env_name, model=MODEL_NAME)
 
     try:
-        # env = JewelryShopEnv(base_url="http://localhost:8000")
-        env = JewelryShopEnv(base_url="https://hard007ik-shopmanagereng.hf.space")
+        env = JewelryShopEnv(base_url=base_url)
 
         result = await env.reset()
         obs = result.observation
@@ -282,7 +281,6 @@ async def main() -> None:
             if done:
                 break
 
-        # Score = final combined reward from the environment
         if rewards:
             score = rewards[-1]
         else:
@@ -298,6 +296,26 @@ async def main() -> None:
             print(f"[DEBUG] env.close() error: {e}", flush=True)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
+    return score
+
+
+# ── MAIN ───────────────────────────────────────
+
+TASKS = [
+    {"id": "market_timing", "env": "jewelry_shop_benchmark"},
+    {"id": "demand_crafter", "env": "jewelry_shop_benchmark"},
+    {"id": "profit_negotiator", "env": "jewelry_shop_benchmark"},
+]
+
+async def main() -> None:
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    # base_url = os.getenv("ENV_BASE_URL", "http://localhost:8000")
+    base_url = os.getenv("ENV_BASE_URL", "https://huggingface.co/spaces/hard007ik/ShopManagerEng")
+
+    for task in TASKS:
+        await run_episode(client, task["id"], task["env"], base_url)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
+
