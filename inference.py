@@ -313,11 +313,10 @@ async def main() -> None:
     # Resolve server URL: evaluator env var → IMAGE_NAME → HF Space → localhost
     base_url = os.getenv("ENV_BASE_URL")
     if not base_url and IMAGE_NAME:
-        # Evaluator sets IMAGE_NAME; derive the Space URL
         base_url = f"https://{IMAGE_NAME.replace('/', '-').replace('_', '-')}.hf.space"
     if not base_url:
-        base_url = os.getenv("SPACE_URL", "http://localhost:8000")
-    print(f"[CONFIG] base_url={base_url}", flush=True)
+        base_url = os.getenv("SPACE_URL", "https://hard007ik-shopmanagereng.hf.space")
+    # print(f"[CONFIG] base_url={base_url}", flush=True)
 
     for task in TASKS:
         await run_episode(client, task["id"], task["env"], base_url)
