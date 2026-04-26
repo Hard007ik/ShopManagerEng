@@ -38,7 +38,11 @@ train = [
     "transformers>=4.46.0",
     "datasets>=2.20.0",
     "accelerate>=1.0.0",
-    "vllm>=0.6.3",
+    # Pin to TRL's supported window. vllm 0.19+ changes the sampling-logprob
+    # path and breaks GRPO importance sampling (ratio collapses to ~0,
+    # grad_norm goes to 0, model stops learning). Keep <=0.18.0 until TRL
+    # bumps its supported range.
+    "vllm>=0.11.0,<=0.18.0",
     "trackio",
     "torch>=2.4.0",
     # Local plotting of loss + reward curves (hackathon submission evidence).
