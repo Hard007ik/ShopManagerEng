@@ -345,8 +345,8 @@ async def main() -> None:
     # ── ENV SERVER URL ──────────────────────────────────────────────────────
     # LOCAL:  start server with `uv run --project . server`, then use localhost
     # REMOTE: comment the localhost line and uncomment the HF Space line
-    base_url = "http://localhost:8000"
-    # base_url = "https://hard007ik-shopmanagereng.hf.space"
+    # base_url = "http://localhost:8000"
+    base_url = "https://hard007ik-shopmanagereng.hf.space"
     # ───────────────────────────────────────────────────────────────────────
 
     # print(f"[CONFIG] base_url={base_url}  model={MODEL_NAME}", flush=True)
