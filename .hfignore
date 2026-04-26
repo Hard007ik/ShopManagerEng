@@ -6,6 +6,13 @@
 rollout_baseline.py
 test_env_smoke.py
 
+# Training scaffolding lives only on the GPU host that trains a model against
+# the deployed Space. The Space itself just serves the env, never trains.
+train_jewelry_grpo.py
+training/
+shopmanager-grpo-out/
+*.trackio
+
 # Course material / docs we don't want to ship inside the Space.
 *.pdf
 *.odt

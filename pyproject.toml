@@ -29,6 +29,22 @@ dev = [
     "pytest-cov>=4.0.0",
 ]
 
+# GRPO training stack. Install only on a GPU host (vLLM is GPU-only).
+#   pip install -e '.[train]'
+# Mirrors openenv-course Module 5 versions. trl>=0.17 is the cutoff that
+# introduced trl.experimental.openenv.generate_rollout_completions.
+train = [
+    "trl>=0.17.0",
+    "transformers>=4.46.0",
+    "datasets>=2.20.0",
+    "accelerate>=1.0.0",
+    "vllm>=0.6.3",
+    "trackio",
+    "torch>=2.4.0",
+    # Local plotting of loss + reward curves (hackathon submission evidence).
+    "matplotlib>=3.7",
+]
+
 [project.scripts]
 # Server entry point - enables running via: uv run --project . server
 # or: python -m ShopManagerEng.server.app
@@ -36,5 +52,5 @@ server = "ShopManagerEng.server.app:main"
 
 [tool.setuptools]
 include-package-data = true
-packages = ["ShopManagerEng", "ShopManagerEng.server"]
-package-dir = { "ShopManagerEng" = ".", "ShopManagerEng.server" = "server" }
+packages = ["ShopManagerEng", "ShopManagerEng.server", "ShopManagerEng.training"]
+package-dir = { "ShopManagerEng" = ".", "ShopManagerEng.server" = "server", "ShopManagerEng.training" = "training" }
