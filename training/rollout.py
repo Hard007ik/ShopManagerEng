@@ -68,9 +68,17 @@ def rollout_once(
     """Play one full jewelry-shop episode and return per-episode signals.
 
     Returns the dict shape TRL's GRPO loop expects: ``prompt_ids``,
-    ``completion_ids``, ``logprobs`` (concatenated across turns of the episode)
-    plus reward signals consumed by reward functions (``total_reward``,
-    ``market_reward``, ``warehouse_reward``, ``showroom_reward``).
+    ``completion_ids``, ``logprobs`` for **a single** vLLM forward (the **last
+    environment turn** in the episode) plus reward signals for reward
+    functions.
+
+    We **do not** concatenate multiple turns into one list. In ``GRPOTrainer``,
+    each batch row is ``cat(prompt_ids, completion_ids)``; vLLM's per-token
+    ``logprobs`` must be for **that** exact sequence, or the importance-sampling
+    ratio (vLLM vs reference forward) collapses. Multi-turn play still runs in
+    the environment; the policy gradient is applied to the **last** action's
+    tokens, while ``total_reward`` remains the full episode return for GRPO
+    group advantages.
     """
     # Late import: trl.experimental.openenv only exists for trl >= 0.17.
     from trl.experimental.openenv import generate_rollout_completions
@@ -79,9 +87,9 @@ def rollout_once(
     result = sync_env.reset(task_id=task_id)
     obs = result.observation
 
-    prompt_ids: List[int] = []
-    completion_ids: List[int] = []
-    logprobs: List[float] = []
+    # One (prompt_ids, completion_ids, logprobs) per vLLM call; last turn only
+    # is returned to TRL (see module docstring).
+    turn_traces: List[Dict[str, Any]] = []
 
     history: List[str] = []
     last_reward = 0.0
@@ -99,9 +107,18 @@ def rollout_once(
         prompt_text = _apply_chat_template(tokenizer, messages, model_name=model_name)
 
         rollout_outputs = generate_rollout_completions(trainer, [prompt_text])[0]
-        prompt_ids.extend(rollout_outputs["prompt_ids"])
-        completion_ids.extend(rollout_outputs["completion_ids"])
-        logprobs.extend(rollout_outputs["logprobs"])
+        p_ids = rollout_outputs["prompt_ids"]
+        c_ids = rollout_outputs["completion_ids"]
+        lps = rollout_outputs["logprobs"]
+        p_list = p_ids.tolist() if hasattr(p_ids, "tolist") else list(p_ids)
+        c_list = c_ids.tolist() if hasattr(c_ids, "tolist") else list(c_ids)
+        turn_traces.append(
+            {
+                "prompt_ids": p_list,
+                "completion_ids": c_list,
+                "logprobs": [float(x) for x in lps],
+            }
+        )
 
         completion_text = rollout_outputs.get("text") or tokenizer.decode(
             rollout_outputs["completion_ids"], skip_special_tokens=True
@@ -125,10 +142,17 @@ def rollout_once(
     total_reward = float(getattr(obs, "cumulative_reward", sum(phase_rewards.values())))
     total_reward = max(0.0, min(total_reward, 1.0))
 
+    if not turn_traces:
+        raise ValueError(
+            "rollout_once produced no vLLM turns (max_turns too low or env ended "
+            "before the first action)."
+        )
+    last = turn_traces[-1]
+
     return {
-        "prompt_ids": prompt_ids,
-        "completion_ids": completion_ids,
-        "logprobs": logprobs,
+        "prompt_ids": last["prompt_ids"],
+        "completion_ids": last["completion_ids"],
+        "logprobs": last["logprobs"],
         "total_reward": total_reward,
         "market_reward": float(phase_rewards["market"]),
         "warehouse_reward": float(phase_rewards["warehouse"]),

@@ -1,0 +1,63 @@
+{
+  "loss": {
+    "final": 0.0,
+    "max": 0.1153,
+    "min": -0.009,
+    "mean": 0.01637777777777778,
+    "n": 18
+  },
+  "reward_total": {
+    "final": 0.7750625014305115,
+    "max": 0.8168656826019287,
+    "min": 0.7081500291824341,
+    "mean": 0.7689822945329878,
+    "n": 18
+  },
+  "reward_market": {
+    "final": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "mean": 0.0,
+    "n": 0
+  },
+  "reward_warehouse": {
+    "final": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "mean": 0.0,
+    "n": 0
+  },
+  "reward_showroom": {
+    "final": 0.0,
+    "max": 0.0,
+    "min": 0.0,
+    "mean": 0.0,
+    "n": 0
+  },
+  "n_log_rows": 19,
+  "output_dir": "/workspace/shopmanager-grpo-qwen3",
+  "run_config": {
+    "model": "Qwen/Qwen3-1.7B",
+    "env_url": "https://hard007ik-shopmanagereng.hf.space",
+    "dataset_size": 300,
+    "num_generations": 2,
+    "per_device_batch": 1,
+    "grad_accum": 32,
+    "max_completion_length": 64,
+    "max_turns": 15,
+    "lr": 5e-06,
+    "warmup_steps": 10,
+    "max_steps": -1,
+    "epochs": 1,
+    "vllm_gpu_mem": 0.3,
+    "reward_weights": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "precision": {
+      "bf16": true
+    }
+  }
+}

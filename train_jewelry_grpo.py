@@ -44,6 +44,7 @@ try:
     from ShopManagerEng.training.plotting import (
         build_metrics_callback,
         save_training_artifacts,
+        upload_training_artifacts_to_hub,
     )
     from ShopManagerEng.training.prompts import SYSTEM_PROMPT
     from ShopManagerEng.training.rewards import (
@@ -56,6 +57,7 @@ except ImportError:  # script-style invocation from inside the folder
     from training.plotting import (  # type: ignore
         build_metrics_callback,
         save_training_artifacts,
+        upload_training_artifacts_to_hub,
     )
     from training.prompts import SYSTEM_PROMPT  # type: ignore
     from training.rewards import (  # type: ignore
@@ -135,6 +137,12 @@ def main() -> None:
         help="Fraction of GPU mem reserved for vLLM. Lower if OOM.",
     )
     ap.add_argument("--push-to-hub", action="store_true")
+    ap.add_argument(
+        "--hub-repo-id",
+        default=None,
+        help="HF model repo (user/model-name) for weight push + training-artifact upload. "
+        "If omitted, artifact upload uses {whoami}/{basename of --output-dir}.",
+    )
     ap.add_argument(
         "--report-to",
         default=os.environ.get("TRAIN_REPORT_TO", "trackio"),
@@ -330,6 +338,24 @@ def main() -> None:
     trainer.save_model(args.output_dir)
     if args.push_to_hub:
         trainer.push_to_hub()
+        # Default Hub push only ships weights/tokenizer; upload plots + metrics explicitly.
+        try:
+            from huggingface_hub import whoami
+
+            user = whoami().get("name") or whoami().get("preferred_username", "user")
+            rid = (
+                args.hub_repo_id
+                or getattr(trainer.args, "hub_model_id", None)
+                or f"{user}/{Path(args.output_dir).name}"
+            )
+            uploaded = upload_training_artifacts_to_hub(args.output_dir, rid)
+            if uploaded:
+                print(
+                    f"[HUB] training artifacts ({len(uploaded)} files) -> "
+                    f"https://huggingface.co/{rid}/tree/main/training_artifacts"
+                )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[HUB] training artifact upload failed: {exc}")
     print(f"[DONE] saved to {args.output_dir}")
 
 

@@ -71,7 +71,8 @@ SYSTEM_PROMPT = textwrap.dedent(
     Respond: "ring", "necklace", or "bracelet".
 
     ## Phase 3: SHOWROOM (negotiate)
-    The customer makes an offer; if you counter, they raise it ~5% per round,
+    you makes an offer; if customer counter by telling less price from your offer, you can drop price about ~3-5% per round but make sure to not sell when loss is happening also bring max profit,
+    if customer says less price then your first told price then you have to say the price that lesser than the price you told before but more that the customer told price
     up to 5 rounds. After 5 rounds with no acceptance, the customer leaves
     (no phase-3 reward). Reject also gives 0 phase-3 reward.
     Respond: "I accept" or a counter like "How about $X?". NEVER explicitly reject.
@@ -344,8 +345,8 @@ async def main() -> None:
     # ── ENV SERVER URL ──────────────────────────────────────────────────────
     # LOCAL:  start server with `uv run --project . server`, then use localhost
     # REMOTE: comment the localhost line and uncomment the HF Space line
-    # base_url = "http://localhost:8000"
-    base_url = "https://hard007ik-shopmanagereng.hf.space"
+    base_url = "http://localhost:8000"
+    # base_url = "https://hard007ik-shopmanagereng.hf.space"
     # ───────────────────────────────────────────────────────────────────────
 
     # print(f"[CONFIG] base_url={base_url}  model={MODEL_NAME}", flush=True)

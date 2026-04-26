@@ -5,11 +5,14 @@ colorFrom: green
 colorTo: blue
 sdk: docker
 pinned: false
-app_port: 8000
+app_port: 7860
 base_path: /web
 tags:
   - openenv
 ---
+
+Link of the environment: https://huggingface.co/spaces/hard007ik/ShopManagerEng
+Link of Blog.md: https://huggingface.co/spaces/hard007ik/ShopManagerEng/tree/main/Blog.md
 
 # Jewelry Shop Manager — RL Environment
 

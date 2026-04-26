@@ -59,6 +59,11 @@ FROM ${BASE_IMAGE}
 
 WORKDIR /app
 
+# Install curl (for health checks in start.sh) and streamlit
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
 # Copy the virtual environment from builder
 COPY --from=builder /app/env/.venv /app/.venv
 
@@ -71,10 +76,15 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Set PYTHONPATH so imports work correctly
 ENV PYTHONPATH="/app/env:$PYTHONPATH"
 
+# Install streamlit into the existing venv
+RUN pip install --no-cache-dir streamlit
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the FastAPI server
-# The module path is constructed to work with the /app/env structure
-CMD ["sh", "-c", "cd /app/env && uvicorn server.app:app --host 0.0.0.0 --port 8000"]
+# Make startup script executable
+RUN chmod +x /app/env/start.sh
+
+# Run both API server (background) + Streamlit UI (foreground)
+CMD ["/app/env/start.sh"]

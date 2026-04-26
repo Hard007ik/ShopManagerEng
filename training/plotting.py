@@ -278,3 +278,48 @@ def build_metrics_callback(output_dir: str | Path, snapshot_every: int = 5):
             return control
 
     return MetricsSaverCallback()
+
+
+def upload_training_artifacts_to_hub(
+    output_dir: str | Path,
+    repo_id: str,
+    *,
+    path_in_repo: str = "training_artifacts",
+) -> list[str]:
+    """Upload small evidence files to the same model repo (PNGs, CSV, JSON).
+
+    ``GRPOTrainer.push_to_hub`` typically uploads weights/tokenizer only; this
+    adds ``metrics.csv``, ``loss_curve.png``, and related files under
+    ``path_in_repo/`` on the Hub so they survive ephemeral cloud jobs.
+    """
+    from huggingface_hub import HfApi, create_repo
+
+    out = Path(output_dir)
+    if not out.is_dir():
+        return []
+
+    create_repo(repo_id, repo_type="model", exist_ok=True)
+    api = HfApi()
+    names = (
+        "metrics.csv",
+        "metrics.json",
+        "loss_curve.png",
+        "reward_curve.png",
+        "reward_total_curve.png",
+        "training_summary.json",
+    )
+    prefix = path_in_repo.strip("/")
+    uploaded: list[str] = []
+    for name in names:
+        path = out / name
+        if not path.is_file():
+            continue
+        dest = f"{prefix}/{name}" if prefix else name
+        api.upload_file(
+            path_or_fileobj=str(path),
+            path_in_repo=dest,
+            repo_id=repo_id,
+            repo_type="model",
+        )
+        uploaded.append(dest)
+    return uploaded
