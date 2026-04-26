@@ -16,12 +16,19 @@ from ShopManagerEng.models import JewelryAction
 
 load_dotenv()
 
-IMAGE_NAME = os.getenv("IMAGE_NAME")
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-# MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
+# ── LLM API ─────────────────────────────────────────────────────────────────
+# HuggingFace Inference Router (needs HF_TOKEN in .env)
+API_BASE_URL = "https://router.huggingface.co/v1"
+
+# ── MODEL ───────────────────────────────────────────────────────────────────
+# Pick one — comment out the other
+MODEL_NAME = "meta-llama/Llama-3.3-70B-Instruct"
+# MODEL_NAME = "Qwen/Qwen2.5-72B-Instruct"
+# MODEL_NAME = "meta-llama/Llama-3.2-3B-Instruct"
+# MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
+# ─────────────────────────────────────────────────────────────────────────────
 TASK_NAME = os.getenv("JEWELRY_ENV_TASK", "jewelry-shop")
 BENCHMARK = os.getenv("JEWELRY_ENV_BENCHMARK", "jewelry_shop_benchmark")
 MAX_STEPS = 15
@@ -32,28 +39,42 @@ SUCCESS_SCORE_THRESHOLD = 0.01
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
-    You are an expert agent running a jewelry shop. Maximize profit across 3 phases.
+    You are an expert agent running a jewelry shop. The episode runs in 3 phases
+    and may loop back to MARKET if the warehouse runs out of gold. The episode
+    reward is the SUM of per-step partial rewards across the whole episode and
+    is bounded in [0, 1]. Each task weights the phases differently:
+      - market_timing     -> phase 1 = 0.6, phase 2 = 0.2, phase 3 = 0.2
+      - demand_crafter    -> phase 1 = 0.2, phase 2 = 0.6, phase 3 = 0.2
+      - profit_negotiator -> phase 1 = 0.2, phase 2 = 0.2, phase 3 = 0.6
 
-    ## Phase 1: MARKET (buy/wait)
-    Gold prices fluctuate ±10% each round (up to 3 rounds).
-    - Analyze the price trend from the history.
-    - If the price DROPPED from the previous round, it might drop further → consider waiting.
-    - If the price ROSE or you're on the last round → buy now.
-    - Reserve enough cash for labor ($100-$300 depending on product).
-    - Respond: "buy X.XX" (to buy X.XX oz of gold) or "wait" (to see next price).
+    ## Phase 1: MARKET (buy / wait)
+    Two modes:
+      - synthetic mode: gold price moves randomly each WAIT step within a round cap.
+      - real mode:      gold price comes from a live source (yfinance: GC=F),
+                        no round cap; WAIT just refreshes the live quote.
+    Coordination from the warehouse:
+      - inventory_urgent=True / cannot_wait=True means you MUST buy now;
+        WAIT will be blocked. Submit "buy X.XX" with an affordable troy-oz qty.
+    Behavior:
+      - If you can wait, observe the price trend in gold_price_history before buying.
+      - Reserve cash for labor (ring=$200, necklace=$300, bracelet=$100).
+      - Respond: "buy X.XX" (troy oz of gold) or "wait".
 
     ## Phase 2: WAREHOUSE (choose product)
-    You see demand levels for each product. Pick the HIGHEST demand product
-    that you can afford to craft (enough gold + cash for labor).
+    You see two demand fields:
+      - demand          : the TRUE per-product demand for THIS episode (ground truth).
+      - demand_forecast : a NOISY signal you can also lean on for planning.
     Products: ring (1oz + $200), necklace (2oz + $300), bracelet (0.5oz + $100).
-    - Respond: "ring", "necklace", or "bracelet"
+    If you don't have enough gold to craft your choice, the env may BOUNCE you back
+    to MARKET to buy more (up to max_market_reentries times). After max bounces or
+    when truly broke, the customer leaves and the episode ends.
+    Respond: "ring", "necklace", or "bracelet".
 
     ## Phase 3: SHOWROOM (negotiate)
-    A customer offers a price. Your goal is to sell at maximum profit.
-    - Counter-offer to drive the price up (customer raises 5% each round, max 5 rounds).
-    - Accept when the offer is good (round >= 3 or offer > 1.3× cost).
-    - NEVER reject.
-    - Respond: "I accept" or a counter like "How about $X?"
+    The customer makes an offer; if you counter, they raise it ~5% per round,
+    up to 5 rounds. After 5 rounds with no acceptance, the customer leaves
+    (no phase-3 reward). Reject also gives 0 phase-3 reward.
+    Respond: "I accept" or a counter like "How about $X?". NEVER explicitly reject.
 
     CRITICAL: Respond with ONLY the action value. No explanations.
     """
@@ -94,7 +115,10 @@ def build_user_prompt(step: int, obs, last_reward: float, history: List[str]) ->
             else:
                 trend = "RISING ↑ (buy now before it gets more expensive)"
 
-        rounds_left = obs.max_market_rounds - obs.market_round
+        if getattr(obs, "cannot_wait", False):
+            trend = "URGENT: inventory needs gold now — you cannot wait; buy at the current live quote with an affordable gold_qty (troy oz)."
+
+        rounds_left = (obs.max_market_rounds - obs.market_round) if obs.max_market_rounds else None
         # Suggest buy quantity that reserves $300 for labor (max labor cost)
         reserve = 300.0
         if obs.gold_price > 0:
@@ -104,20 +128,27 @@ def build_user_prompt(step: int, obs, last_reward: float, history: List[str]) ->
         else:
             suggested_qty = 1.0
 
+        _rl = "unlimited" if rounds_left is None else str(rounds_left)
         phase_hint = (
+            f"Price: ${getattr(obs, 'gold_price', 0)}/oz ({getattr(obs, 'gold_price_source', '') or 'n/a'}). "
             f"Price history: {prices}. Trend: {trend}. "
-            f"Rounds left: {rounds_left}. "
+            f"Rounds / waits so far: {getattr(obs, 'market_round', 0)}; cap: {_rl}. "
+            f"Gold on hand: {getattr(obs, 'gold_oz', 0)} troy oz (~{getattr(obs, 'gold_grams', 0):.2f} g). "
             f"If buying, suggested qty: {suggested_qty} oz (reserves $300 for labor). "
             f"Respond: 'buy {suggested_qty}' or 'wait'"
         )
 
     elif obs.phase == "warehouse":
         demand = obs.demand
+        forecast = getattr(obs, "demand_forecast", {}) or {}
         best_product = max(demand, key=demand.get) if demand else "ring"
         phase_hint = (
-            f"Demand: ring={demand.get('ring', 0):.0%}, "
+            f"Demand (episode): ring={demand.get('ring', 0):.0%}, "
             f"necklace={demand.get('necklace', 0):.0%}, "
             f"bracelet={demand.get('bracelet', 0):.0%}. "
+            f"Forecast (noisy): ring={forecast.get('ring', 0):.0%}, "
+            f"necklace={forecast.get('necklace', 0):.0%}, "
+            f"bracelet={forecast.get('bracelet', 0):.0%}. "
             f"Highest demand: {best_product}. "
             f"You have {obs.gold_oz}oz gold and ${obs.cash} cash. "
             f"Respond with EXACTLY: {best_product}"
@@ -253,7 +284,8 @@ async def run_episode(client: OpenAI, task_name: str, env_name: str, base_url: s
     try:
         env = JewelryShopEnv(base_url=base_url)
 
-        result = await env.reset()
+        # Pass task_id so the env applies that task's per-phase weights.
+        result = await env.reset(task_id=task_name)
         obs = result.observation
         last_reward = 0.0
 
@@ -281,11 +313,9 @@ async def run_episode(client: OpenAI, task_name: str, env_name: str, base_url: s
             if done:
                 break
 
-        if rewards:
-            score = rewards[-1]
-        else:
-            score = 0.0
-
+        # Trajectory return = env's authoritative cumulative reward (sum of per-step
+        # partials, in [0, 1]). Falls back to summing locally if the field is missing.
+        score = float(getattr(obs, "cumulative_reward", sum(rewards) if rewards else 0.0))
         score = min(max(score, 0.0), 1.0)
         success = score >= SUCCESS_SCORE_THRESHOLD
 
@@ -310,13 +340,15 @@ TASKS = [
 
 async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    # Resolve server URL: evaluator env var → IMAGE_NAME → HF Space → localhost
-    base_url = os.getenv("ENV_BASE_URL")
-    if not base_url and IMAGE_NAME:
-        base_url = f"https://{IMAGE_NAME.replace('/', '-').replace('_', '-')}.hf.space"
-    if not base_url:
-        base_url = os.getenv("SPACE_URL", "https://hard007ik-shopmanagereng.hf.space")
-    # print(f"[CONFIG] base_url={base_url}", flush=True)
+
+    # ── ENV SERVER URL ──────────────────────────────────────────────────────
+    # LOCAL:  start server with `uv run --project . server`, then use localhost
+    # REMOTE: comment the localhost line and uncomment the HF Space line
+    # base_url = "http://localhost:8000"
+    base_url = "https://hard007ik-shopmanagereng.hf.space"
+    # ───────────────────────────────────────────────────────────────────────
+
+    # print(f"[CONFIG] base_url={base_url}  model={MODEL_NAME}", flush=True)
 
     for task in TASKS:
         await run_episode(client, task["id"], task["env"], base_url)

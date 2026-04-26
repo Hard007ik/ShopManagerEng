@@ -9,19 +9,20 @@ tasks:
   - id: market_timing
     name: "Market Price Analyst"
     description: >
-      Analyze gold price fluctuations across up to 3 market rounds.
-      Decide whether to buy immediately or wait for a price drop.
-      Reserve enough cash for crafting labor ($100-$300).
+      Long-horizon Phase 1: get gold (troy oz) at a reasonable cost using live or synthetic
+      market quotes, coordinate with optional inventory-urgent signals, then proceed to
+      craft and sell. May require multiple market steps in real mode (no hard round cap);
+      synthetic mode supports classic round-budget runs.
     grader:
       type: reward_threshold
       threshold: 0.3
 
   - id: demand_crafter
-    name: "Demand-Based Crafter"
+    name: "Demand-Based Crafter (Inventory)"
     description: >
-      Check warehouse demand levels for ring, necklace, and bracelet.
-      Choose the highest-demand product you can afford to craft.
-      Products: ring (1oz + $200), necklace (2oz + $300), bracelet (0.5oz + $100).
+      Phase 2: use demand and demand_forecast, gold stock, and costs to pick which product
+      to craft. Products: ring (1oz + $200), necklace (2oz + $300), bracelet (0.5oz + $100).
+      FIFO (SQLite) pricing applies in real + DB mode for true metal cost.
     grader:
       type: reward_threshold
       threshold: 0.2

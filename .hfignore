@@ -1,0 +1,31 @@
+# Extra files to keep OUT of the Hugging Face Space upload.
+# Used by: openenv push --exclude .hfignore
+# (in addition to .gitignore)
+
+# Local-only env-utility scripts. Useful on dev machine, not part of the Space service.
+rollout_baseline.py
+test_env_smoke.py
+
+# Course material / docs we don't want to ship inside the Space.
+*.pdf
+*.odt
+
+# Editor / IDE noise.
+.idea/
+.vscode/
+.DS_Store
+
+# Inner GitHub repo metadata — Space gets its own git history.
+.git/
+
+# Local virtualenv & secrets (also covered by .gitignore but listed here for safety).
+.venv/
+.env
+
+# Build / runtime artifacts that auto-regenerate.
+__pycache__/
+*.egg-info/
+*.pyc
+*.log
+data/
+trl_jewelry_out/
