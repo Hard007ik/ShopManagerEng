@@ -119,7 +119,10 @@ def main() -> None:
     ap.add_argument("--per-device-batch", type=int, default=1)
     ap.add_argument("--grad-accum", type=int, default=32)
     ap.add_argument("--max-completion-length", type=int, default=64)
-    ap.add_argument("--max-prompt-length", type=int, default=2048)
+    # NOTE: --max-prompt-length intentionally removed. Recent TRL versions
+    # (>=0.20-ish) dropped `max_prompt_length` from GRPOConfig and now infer
+    # it from the tokenizer / model context window. Passing it back errors
+    # with `TypeError: unexpected keyword argument 'max_prompt_length'`.
     ap.add_argument("--max-turns", type=int, default=15)
     ap.add_argument("--lr", type=float, default=5e-6)
     ap.add_argument("--warmup-steps", type=int, default=10)
@@ -251,7 +254,7 @@ def main() -> None:
         warmup_steps=args.warmup_steps,
         num_generations=args.num_generations,
         max_completion_length=args.max_completion_length,
-        max_prompt_length=args.max_prompt_length,
+        # `max_prompt_length` removed: not accepted by recent TRL GRPOConfig.
         # vLLM is the canonical generation backend on GPU; turn off on CPU smoke.
         use_vllm=not use_cpu,
         vllm_mode="colocate" if not use_cpu else None,
@@ -291,7 +294,6 @@ def main() -> None:
         "per_device_batch": args.per_device_batch,
         "grad_accum": args.grad_accum,
         "max_completion_length": args.max_completion_length,
-        "max_prompt_length": args.max_prompt_length,
         "max_turns": args.max_turns,
         "lr": args.lr,
         "warmup_steps": args.warmup_steps,
